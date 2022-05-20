@@ -3,8 +3,8 @@
 
 const char* ssid = "Maggouri"; //Enter SSID
 const char* password = "petaloudes"; //Enter Password
-const char* websockets_server_host = "192.168.31.54"; //Enter server adress
-const uint16_t websockets_server_port = 8080; // Enter server port
+const char* websockets_server_host = "http://192.168.31.54"; //Enter server adress
+const uint16_t websockets_server_port = 8000; // Enter server port
 
 using namespace websockets;
 
