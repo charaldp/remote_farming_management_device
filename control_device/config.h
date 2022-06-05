@@ -2,4 +2,4 @@
 #define CONTROL_DEVICE_ID "1"
 #define PRESSURE_SENSOR_DEVICE_ID "1"
 #define PRESSURE_READ_PIN A0
-#define RELAY_PIN 37
+#define RELAY_PIN 21

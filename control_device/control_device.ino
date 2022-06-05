@@ -51,7 +51,7 @@ void loop() {
     )
         return;
     timeinterval = now;
-    if (is_on && watering_time_interval - now > 7200000)
+    if (is_on && (now - watering_time_interval > 7200000))
         updateIsOn(false);
     if(WiFi.status() != WL_CONNECTED)
         return;
