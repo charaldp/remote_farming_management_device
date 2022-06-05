@@ -1,15 +1,24 @@
-#include <ArduinoWebsockets.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include "config.h";
 
 const char* ssid = "Maggouri"; //Enter SSID
 const char* password = "petaloudes"; //Enter Password
-const char* websockets_server_host = "http://192.168.31.54"; //Enter server adress
-const uint16_t websockets_server_port = 8000; // Enter server port
+int pressure_analog_read = 0;
+float pressure = 0;
+unsigned long now = 0;
+unsigned long timeinterval = 0;
+unsigned long watering_time_interval = 0;
+bool is_on = false;
+bool temp_is_on = false;
+String watering_entry_id = "0";
+int httpCode = 0;
 
-using namespace websockets;
-
-WebsocketsClient client;
 void setup() {
+    pinMode(RELAY_PIN, OUTPUT);
+    pinMode(PRESSURE_READ_PIN, INPUT);
+    updateIsOn(false);
     Serial.begin(115200);
     // Connect to wifi
     WiFi.begin(ssid, password);
@@ -25,28 +34,98 @@ void setup() {
         Serial.println("No Wifi!");
         return;
     }
-
-    Serial.println("Connected to Wifi, Connecting to server.");
-    // try to connect to Websockets server
-    bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
-    if(connected) {
-        Serial.println("Connected!");
-        client.send("Hello Server");
-    } else {
-        Serial.println("Not Connected!");
-    }
-    
-    // run callback when messages are received
-    client.onMessage([&](WebsocketsMessage message){
-        Serial.print("Got Message: ");
-        Serial.println(message.data());
-    });
+    timeinterval = millis();
 }
 
 void loop() {
     // let the websockets client check for incoming messages
-    if(client.available()) {
-        client.poll();
+    delay(50);
+    now = millis();
+    if ((now - timeinterval < 2000)
+//        && (
+//            is_on && (
+//                (now - watering_time_interval < 60000 && timeinterval < 5000) ||
+//                (now - watering_time_interval < 300000 && timeinterval < 20000)
+//            )
+//        )
+    )
+        return;
+    timeinterval = now;
+    if (is_on && watering_time_interval - now > 7200000)
+        updateIsOn(false);
+    if(WiFi.status() != WL_CONNECTED)
+        return;
+    checkIsOnStatus();
+    // get response from the server for watering status
+    if (is_on) {
+        pressure_analog_read = analogRead(PRESSURE_READ_PIN);
+        pressure = 20.0 * (float)pressure_analog_read / 4096.0;
+        Serial.println("P="+String(pressure));
+        WiFiClient client;
+        HTTPClient http;
+        String sensor_reading_store_path = String("/api/control_device/")+String(CONTROL_DEVICE_ID)+String("/watering_entry/")+watering_entry_id+String("/sensor_device/")+String(PRESSURE_SENSOR_DEVICE_ID)+String("/sensor_reading/store");
+        if (http.begin(client, String(SERVER_HOST) + sensor_reading_store_path)) {
+            http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+            httpCode = http.POST(String("measurement_type=pressure")+String("&value=") + String(pressure));
+            if (!(httpCode == HTTP_CODE_OK)) {
+                Serial.println("Pressure Reading Store, Non regular response code: "+String(httpCode));
+                String payload = http.getString();
+                Serial.println(sensor_reading_store_path);
+                Serial.println(payload);
+                return;
+            }
+            String payload = http.getString();
+        }
     }
-    delay(500);
+}
+
+void updateIsOn(bool new_is_on) {
+    is_on = new_is_on;
+    if (is_on) {
+        digitalWrite(RELAY_PIN, HIGH);
+        watering_time_interval = millis();
+    } else {
+        digitalWrite(RELAY_PIN, LOW);
+    }
+}
+
+void checkIsOnStatus() {
+    WiFiClient client;
+    HTTPClient http;
+    String control_device_path = String("/control_device/")+String(CONTROL_DEVICE_ID)+String("/show");
+    if (!http.begin(client, String(SERVER_HOST) + control_device_path))
+        return;
+    httpCode = http.GET();
+    if (!(httpCode == HTTP_CODE_OK)) {
+        Serial.println("Control Device Show, Non regular response code: "+String(httpCode));
+        Serial.println(control_device_path);
+        return;
+    }
+    const String& payload = http.getString();
+    const size_t capacity = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + 256;
+    DynamicJsonDocument doc(capacity);
+
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error) {
+        Serial.println("Response:");
+        Serial.println(payload);
+        Serial.println((String)doc["is_on"].as<int>());
+        Serial.println(doc["name"].as<char*>());
+        Serial.println((String)doc["watering_entry_id"].as<int>());
+                
+        if (doc["is_on"].as<int>() == 1) {
+            // csrf = (String)doc["csrf"].as<char*>();
+            temp_is_on = true;
+        } else {
+            temp_is_on = false;
+        }
+        if (temp_is_on != is_on) {
+            updateIsOn(temp_is_on);
+            watering_entry_id = (String)doc["watering_entry_id"].as<int>();
+        }
+    } else {
+      Serial.print("deserializeJson() failed: ");
+      Serial.println(error.c_str());
+      Serial.println(payload);
+    }
 }
