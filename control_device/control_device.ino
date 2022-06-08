@@ -8,8 +8,10 @@ const char* password = "petaloudes"; //Enter Password
 int pressure_analog_read = 0;
 float pressure = 0;
 unsigned long now = 0;
-unsigned long timeinterval = 0;
+unsigned long time_interval = 0;
 unsigned long watering_time_interval = 0;
+unsigned long restart_time_interval = 0;
+
 bool is_on = false;
 bool temp_is_on = false;
 String watering_entry_id = "0";
@@ -18,7 +20,7 @@ int httpCode = 0;
 void setup() {
     pinMode(RELAY_PIN, OUTPUT);
     pinMode(PRESSURE_READ_PIN, INPUT);
-    updateIsOn(false);
+    digitalWrite(RELAY_PIN, LOW);
     Serial.begin(115200);
     // Connect to wifi
     WiFi.begin(ssid, password);
@@ -32,26 +34,26 @@ void setup() {
     // Check if connected to wifi
     if(WiFi.status() != WL_CONNECTED) {
         Serial.println("No Wifi!");
-        return;
+        ESP.restart();
     }
-    timeinterval = millis();
+    time_interval = millis();
+    restart_time_interval = millis();
 }
 
 void loop() {
-    // let the websockets client check for incoming messages
-    delay(50);
+    delay(100);
     now = millis();
-    if ((now - timeinterval < 2000)
-//        && (
-//            is_on && (
-//                (now - watering_time_interval < 60000 && timeinterval < 5000) ||
-//                (now - watering_time_interval < 300000 && timeinterval < 20000)
-//            )
-//        )
+    if ((now - time_interval < 2000)
+    //    && (
+    //        is_on && (
+    //            (now - watering_time_interval < 60000 && time_interval < 2000) ||
+    //            (now - watering_time_interval < 300000 && time_interval < 10000)
+    //        )
+    //    )
     )
         return;
-    timeinterval = now;
-    if (is_on && (now - watering_time_interval > 7200000))
+    time_interval = now;
+    if (is_on && (now - watering_time_interval > 10800000))
         updateIsOn(false);
     if(WiFi.status() != WL_CONNECTED)
         return;
@@ -59,7 +61,7 @@ void loop() {
     // get response from the server for watering status
     if (is_on) {
         pressure_analog_read = analogRead(PRESSURE_READ_PIN);
-        pressure = 20.0 * (float)pressure_analog_read / 4096.0;
+        pressure = 6.875 * (float)pressure_analog_read / 4096.0;
         Serial.println("P="+String(pressure));
         WiFiClient client;
         HTTPClient http;
@@ -86,6 +88,7 @@ void updateIsOn(bool new_is_on) {
         watering_time_interval = millis();
     } else {
         digitalWrite(RELAY_PIN, LOW);
+        ESP.restart();
     }
 }
 
