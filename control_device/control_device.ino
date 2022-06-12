@@ -1,3 +1,5 @@
+#include <TFT_eSPI.h>
+#include <SPI.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -11,6 +13,7 @@ unsigned long now = 0;
 unsigned long time_interval = 0;
 unsigned long watering_time_interval = 0;
 unsigned long restart_time_interval = 0;
+TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 
 bool is_on = false;
 bool temp_is_on = false;
@@ -22,9 +25,16 @@ void setup() {
     pinMode(PRESSURE_READ_PIN, INPUT);
     digitalWrite(RELAY_PIN, LOW);
     Serial.begin(115200);
+    tft.init();
+    tft.setRotation(1);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_GREEN);
+    tft.setCursor(0, 0);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(3);
     // Connect to wifi
     WiFi.begin(ssid, password);
-
+    
     // Wait some time to connect to wifi
     for(int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; i++) {
         Serial.print(".");
@@ -41,7 +51,12 @@ void setup() {
 }
 
 void loop() {
-    delay(100);
+    pressure_analog_read = analogRead(PRESSURE_READ_PIN);
+    pressure = 6.875 * (float)pressure_analog_read / 4096.0;
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("P = "+String(pressure)+" bar",  tft.width() / 2, tft.height() / 2 );
+    delay(500);
     now = millis();
     if ((now - time_interval < 2000)
     //    && (
