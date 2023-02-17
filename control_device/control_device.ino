@@ -5,8 +5,8 @@
 #include <ArduinoJson.h>
 #include "config.h";
 
-const char* ssid = "Maggouri"; //Enter SSID
-const char* password = "petaloudes"; //Enter Password
+const char* ssid = "ssid_name"; //Enter SSID
+const char* password = "ssid_pass"; //Enter Password
 int pressure_analog_read = 0;
 float pressure = 0;
 unsigned long now = 0;
