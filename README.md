@@ -5,8 +5,9 @@ Add to Additional Boards Manager URLs:
 - https://dl.espressif.com/dl/package_esp32_index.json
  
 Boards:
-   -esp32
-      -- Select Board TTGO-LoRa 32 OLED
+   - esp32
+   - Select Board TTGO-LoRa 32 OLED
+
 Libraries:
-   -Bodmer/TFT_eSPI
-   -Blanchon/JSON
+   - Bodmer/TFT_eSPI
+   - Blanchon/JSON
